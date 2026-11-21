@@ -1,170 +1,148 @@
 #!/usr/bin/env python3
-"""TOAST & PRESS 3000 — a studio catalogue photograph of an impossible gadget.
+"""Draw the entry image: a studio catalogue photograph of an impossible gadget.
 
-A chrome toaster that toasts bread AND irons a shirt at the same time.
-Drawn with Pillow: every element is vector geometry, so the render is
-deterministic. Run: python3 draw_image.py  ->  entry.png (1024x1024).
+The TOAST & PRESS 3000 — a chrome toaster that toasts bread AND irons a shirt
+at the same time. A white dress shirt is draped over the toaster being pressed,
+two golden toast slices pop from the slots, steam rises, and exactly one
+accessory lies beside it: a burgundy striped necktie, freshly pressed.
+
+Drawn with Pillow: every shape is a fixed coordinate, so running this twice
+produces identical bytes. Run: python3 draw_image.py  ->  writes entry.png.
 """
-import math
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 
 W = H = 1024
-FDIR = "/usr/share/fonts/truetype/dejavu"
+FD = "/usr/share/fonts/truetype/dejavu"
+
 
 def font(name, size):
-    return ImageFont.truetype(f"{FDIR}/{name}", size)
+    return ImageFont.truetype(f"{FD}/{name}", size)
 
-F_LABEL = font("DejaVuSans-Bold.ttf", 30)
-F_BADGE = font("DejaVuSans-Bold.ttf", 22)
-F_SMALL = font("DejaVuSans.ttf", 17)
 
-# ---------- backdrop: soft studio gradient + floor ----------
-img = Image.new("RGB", (W, H), (238, 238, 236))
+F_BADGE = font("DejaVuSans-Bold.ttf", 14)
+
+img = Image.new("RGB", (W, H), (247, 247, 245))
 d = ImageDraw.Draw(img)
+
+# ---- studio backdrop: soft vertical gradient, floor below y=780 ----
 for y in range(H):
-    t = y / H
-    g = int(240 - 22 * t)          # 240 -> 218, top to bottom
-    d.line([(0, y), (W, y)], fill=(g, g, g - 2))
-# floor: slightly darker band from y=830
-d.rectangle([0, 830, W, H], fill=(216, 216, 214))
-d.line([(0, 830), (W, 830)], fill=(196, 196, 194), width=2)
-# soft contact shadow under the product
-sh = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-ds = ImageDraw.Draw(sh)
-ds.ellipse([255, 815, 775, 875], fill=(0, 0, 0, 70))
-sh = sh.filter(ImageFilter.GaussianBlur(14))
-img.paste(sh, (0, 0), sh)
+    if y < 780:
+        t = y / 780
+        c = tuple(int(247 + (218 - 247) * t) for _ in range(3))
+    else:
+        t = (y - 780) / 244
+        c = tuple(int(218 - (218 - 196) * t) for _ in range(3))
+    d.line([(0, y), (W, y)], fill=c)
+d.line([(0, 780), (W, 780)], fill=(190, 190, 188), width=2)
+
+# ---- soft contact shadow under the product (RGBA overlay) ----
+ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+od = ImageDraw.Draw(ov)
+od.ellipse([300, 772, 760, 812], fill=(60, 60, 60, 70))
+od.ellipse([740, 788, 990, 820], fill=(60, 60, 60, 45))
+img = Image.alpha_composite(img.convert("RGBA"), ov).convert("RGB")
 d = ImageDraw.Draw(img)
 
-# ---------- chrome toaster body (horizontal metallic gradient) ----------
-BX0, BY0, BX1, BY1 = 300, 540, 724, 830
-grad = Image.new("RGB", (BX1 - BX0, BY1 - BY0))
-gd = ImageDraw.Draw(grad)
-stops = [(0.00, (245, 245, 245)), (0.18, (205, 205, 205)),
-         (0.38, (160, 160, 160)), (0.55, (225, 225, 225)),
-         (0.72, (175, 175, 175)), (0.88, (235, 235, 235)),
-         (1.00, (200, 200, 200))]
-gw = BX1 - BX0
-for x in range(gw):
-    t = x / gw
-    for i in range(len(stops) - 1):
-        t0, c0 = stops[i]
-        t1, c1 = stops[i + 1]
-        if t0 <= t <= t1:
-            f = (t - t0) / (t1 - t0) if t1 > t0 else 0
-            col = tuple(int(c0[j] + (c1[j] - c0[j]) * f) for j in range(3))
-            break
-    gd.line([(x, 0), (x, BY1 - BY0)], fill=col)
-mask = Image.new("L", (gw, BY1 - BY0), 0)
-dm = ImageDraw.Draw(mask)
-dm.rounded_rectangle([0, 0, gw, BY1 - BY0], radius=28, fill=255)
-img.paste(grad, (BX0, BY0), mask)
-d = ImageDraw.Draw(img)
-d.rounded_rectangle([BX0, BY0, BX1, BY1], radius=28, outline=(120, 120, 120), width=2)
-# top highlight stripe
-d.rounded_rectangle([BX0 + 14, BY0 + 10, BX1 - 14, BY0 + 26], radius=8,
-                    fill=(255, 255, 255))
-# feet
-d.rounded_rectangle([330, BY1 - 4, 380, BY1 + 8], radius=6, fill=(60, 60, 60))
-d.rounded_rectangle([644, BY1 - 4, 694, BY1 + 8], radius=6, fill=(60, 60, 60))
+# ---- toast slices popping from the slots ----
+def toast(x0, y0, x1, y1):
+    d.rounded_rectangle([x0, y0, x1, y1], radius=18, fill=(178, 118, 44))
+    d.rounded_rectangle([x0 + 8, y0 + 8, x1 - 8, y1 - 6], radius=13,
+                        fill=(246, 205, 107))
+    # light toasting marks
+    d.ellipse([x0 + 26, y0 + 40, x0 + 52, y0 + 78], fill=(226, 170, 80))
+    d.ellipse([x1 - 52, y0 + 30, x1 - 26, y0 + 66], fill=(226, 170, 80))
 
-# ---------- slots + toast slices popping up ----------
-for sx in (352, 556):
-    d.rounded_rectangle([sx, 522, sx + 116, 546], radius=8, fill=(40, 40, 40))
-for cx, ang in ((410, 5), (614, -4)):
-    # one toast slice on its own layer so it can be tilted
-    lay = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
-    dl = ImageDraw.Draw(lay)
-    dl.rounded_rectangle([45, 30, 155, 175], radius=18, fill=(196, 128, 52))
-    dl.rounded_rectangle([55, 42, 145, 163], radius=12, fill=(232, 184, 106))
-    dl.rounded_rectangle([55, 42, 145, 163], radius=12, outline=(176, 112, 44), width=3)
-    lay = lay.rotate(ang, resample=Image.BICUBIC, center=(100, 100))
-    img.paste(lay, (cx - 100, 395), lay)
-d = ImageDraw.Draw(img)
+toast(372, 300, 478, 500)
+toast(546, 292, 652, 500)
 
-# ---------- white shirt draped over the toaster's top, hanging down the front ----------
-shirt = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-ds = ImageDraw.Draw(shirt)
-# main cloth: shoulders at the top, gentle wavy hem
-ds.polygon([(338, 548), (686, 548), (700, 700), (672, 716), (620, 700),
-            (512, 712), (404, 700), (352, 716), (324, 700)],
-           fill=(250, 250, 248, 255), outline=(190, 190, 188))
-# collar: two triangles meeting at the neck
-ds.polygon([(452, 548), (512, 606), (470, 612)], fill=(238, 238, 236, 255),
-           outline=(170, 170, 168))
-ds.polygon([(572, 548), (512, 606), (554, 612)], fill=(238, 238, 236, 255),
-           outline=(170, 170, 168))
-ds.polygon([(496, 590), (528, 590), (512, 606)], fill=(210, 210, 208, 255))
-# button placket down the middle
-ds.line([(512, 612), (512, 706)], fill=(200, 200, 198), width=3)
-for by in (632, 662, 692):
-    ds.ellipse([506, by, 518, by + 12], outline=(150, 150, 148), width=2)
+# ---- toaster body: chrome with a bright highlight stripe ----
+d.rounded_rectangle([300, 470, 724, 790], radius=28, fill=(176, 176, 176),
+                    outline=(110, 110, 110), width=3)
+# chrome bands: bright stripe left, dark edge right
+d.rounded_rectangle([300, 470, 352, 790], radius=28, fill=(224, 224, 224))
+d.rounded_rectangle([352, 470, 392, 790], radius=4, fill=(240, 240, 240))
+d.rounded_rectangle([668, 470, 724, 790], radius=28, fill=(128, 128, 128))
+# top slots (dark, behind the toast)
+d.rounded_rectangle([360, 466, 492, 486], radius=8, fill=(52, 52, 52))
+d.rounded_rectangle([532, 466, 664, 486], radius=8, fill=(52, 52, 52))
+# right side cap with browning dial and lever
+d.ellipse([680, 620, 720, 660], fill=(96, 96, 96), outline=(70, 70, 70),
+          width=2)
+d.line([(700, 640), (700, 626)], fill=(245, 245, 245), width=3)
+d.rounded_rectangle([700, 668, 716, 724], radius=6, fill=(90, 90, 90))
+
+# ---- dress shirt draped over the toaster top, being pressed ----
+# The drape covers only the top third of the front face, so the chrome body
+# below it stays visible and the toaster reads as the hero.
+d.rounded_rectangle([330, 440, 694, 610], radius=16, fill=(255, 255, 255),
+                    outline=(178, 178, 178), width=2)
+# shading on the right half of the drape
+d.rounded_rectangle([560, 440, 694, 610], radius=16, fill=(232, 232, 232))
+d.rounded_rectangle([330, 440, 560, 610], radius=16, fill=(255, 255, 255))
 # fold lines
-ds.arc([360, 560, 470, 700], 20, 130, fill=(215, 215, 213), width=3)
-ds.arc([560, 560, 680, 700], 50, 160, fill=(215, 215, 213), width=3)
-ds.arc([430, 640, 600, 760], 10, 170, fill=(222, 222, 220), width=2)
-img.paste(shirt, (0, 0), shirt)
-d = ImageDraw.Draw(img)
+d.line([(400, 450), (388, 600)], fill=(198, 198, 198), width=2)
+d.line([(624, 450), (636, 600)], fill=(198, 198, 198), width=2)
+# collar: two triangles meeting at the centre V
+d.polygon([(452, 440), (512, 440), (512, 498), (468, 470)], fill=(250, 250, 250),
+          outline=(160, 160, 160))
+d.polygon([(572, 440), (512, 440), (512, 498), (556, 470)], fill=(250, 250, 250),
+          outline=(160, 160, 160))
+# placket and buttons down the middle
+d.line([(512, 498), (512, 602)], fill=(190, 190, 190), width=3)
+for by in (520, 556, 592):
+    d.ellipse([504, by, 520, by + 16], fill=(214, 214, 214),
+              outline=(150, 150, 150), width=2)
 
-# ---------- steam rising from toast + shirt ----------
-steam = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-dst = ImageDraw.Draw(steam)
-for sx, ph in ((410, 0.0), (512, 1.4), (614, 2.6)):
-    pts = []
-    for i in range(41):
-        yy = 430 - i * 6
-        xx = sx + int(14 * math.sin(i * 0.35 + ph))
-        pts.append((xx, yy))
-    dst.line(pts, fill=(255, 255, 255, 110), width=7, joint="curve")
-steam = steam.filter(ImageFilter.GaussianBlur(3))
-img.paste(steam, (0, 0), steam)
-d = ImageDraw.Draw(img)
-
-# ---------- product label + badge + dial + lever ----------
-# label plate is sized to the text: shrink the font until the name fits
-plate = (368, 736, 640, 786)
+# ---- product label plate + 2-IN-1 badge (on the chrome front, below the shirt) ----
+d.rounded_rectangle([330, 700, 600, 744], radius=8, fill=(38, 38, 38))
 label = "TOAST & PRESS 3000"
-fsize = 30
-while fsize > 16:
-    fl = font("DejaVuSans-Bold.ttf", fsize)
-    if d.textlength(label, font=fl) <= plate[2] - plate[0] - 16:
-        break
-    fsize -= 1
-d.rounded_rectangle(plate, radius=8, fill=(28, 32, 40))
-d.text(((plate[0] + plate[2]) // 2, 761), label, font=fl, fill=(245, 245, 240),
-       anchor="mm")
-# 2-IN-1 badge: small font so the text stays inside the circle
-d.ellipse([648, 736, 700, 788], fill=(178, 34, 34), outline=(255, 255, 255), width=2)
-d.text((674, 762), "2-IN-1", font=font("DejaVuSans-Bold.ttf", 15),
-       fill=(255, 255, 255), anchor="mm")
-# browning dial, clear of the label plate
-d.ellipse([312, 742, 352, 782], fill=(70, 70, 70), outline=(220, 220, 220), width=2)
-d.line([(332, 762), (332, 748)], fill=(240, 240, 240), width=3)
-# side lever
-d.rounded_rectangle([716, 620, 736, 668], radius=8, fill=(90, 90, 90),
-                    outline=(200, 200, 200), width=2)
-d.ellipse([712, 648, 740, 676], fill=(178, 34, 34), outline=(255, 255, 255), width=2)
+size = 20
+f = font("DejaVuSans-Bold.ttf", size)
+while d.textlength(label, font=f) > 252 and size > 12:
+    size -= 1
+    f = font("DejaVuSans-Bold.ttf", size)
+tw = d.textlength(label, font=f)
+d.text((465 - tw / 2, 722 - size / 2 - 2), label, font=f, fill=(245, 245, 245))
+# circular badge
+d.ellipse([624, 694, 680, 750], fill=(178, 34, 34), outline=(120, 20, 20),
+          width=2)
+bt = "2-IN-1"
+btw = d.textlength(bt, font=F_BADGE)
+d.text((652 - btw / 2, 722 - 7), bt, font=F_BADGE, fill=(255, 255, 255))
 
-# ---------- the one accessory: a necktie laid flat on the floor ----------
-tie = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-dt = ImageDraw.Draw(tie)
-# knot + blade, lying horizontally, slightly angled
-dt.polygon([(788, 836), (826, 822), (838, 846), (806, 862)],
-           fill=(122, 28, 40, 255), outline=(90, 18, 28, 255))
-dt.polygon([(826, 822), (960, 800), (982, 830), (968, 856), (838, 846)],
-           fill=(146, 32, 48, 255), outline=(90, 18, 28, 255))
-# diagonal stripes on the blade
-for x0 in (860, 890, 920, 950):
-    dt.line([(x0, 816), (x0 - 14, 852)], fill=(232, 190, 90, 255), width=6)
-tie = tie.rotate(-4, resample=Image.BICUBIC, center=(880, 835))
-img.paste(tie, (0, 0), tie)
+# ---- steam rising from the shirt: smooth sine curves, not zigzags ----
+import math
+ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+od = ImageDraw.Draw(ov)
+for x0, top in ((420, 250), (512, 230), (604, 250)):
+    pts = []
+    for i in range(31):
+        yy = 430 - i * (430 - top) / 30
+        xx = x0 + 9 * math.sin(i * 0.55)
+        pts.append((xx, yy))
+    od.line(pts, fill=(150, 150, 150, 100), width=4)
+img = Image.alpha_composite(img.convert("RGBA"), ov).convert("RGB")
 d = ImageDraw.Draw(img)
-# tie's soft shadow
-sh2 = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-d2 = ImageDraw.Draw(sh2)
-d2.ellipse([790, 852, 985, 878], fill=(0, 0, 0, 40))
-sh2 = sh2.filter(ImageFilter.GaussianBlur(6))
-img.paste(sh2, (0, 0), sh2)
+
+# ---- exactly one accessory: a burgundy striped necktie, laid flat ----
+# Drawn upright on its own layer (knot + blade + tip + stripes), then
+# rotated, so it reads as a real tie instead of a flat wedge.
+tie = Image.new("RGBA", (300, 90), (0, 0, 0, 0))
+td = ImageDraw.Draw(tie)
+# blade
+td.polygon([(46, 26), (238, 26), (272, 45), (238, 64), (46, 64)],
+           fill=(122, 31, 43))
+# diagonal stripes, kept inside the blade rectangle
+for i in range(7):
+    x = 62 + i * 26
+    td.line([(x, 26), (x + 12, 64)], fill=(156, 51, 64), width=7)
+# knot
+td.polygon([(6, 18), (46, 18), (54, 72), (0, 72)], fill=(96, 22, 32))
+td.polygon([(46, 26), (238, 26), (272, 45), (238, 64), (46, 64)],
+           outline=(70, 14, 20), width=2)
+td.polygon([(6, 18), (46, 18), (54, 72), (0, 72)], outline=(70, 14, 20))
+tie = tie.rotate(-16, expand=True, resample=Image.BICUBIC)
+img.paste(tie, (730, 748), tie)
 
 img.save("entry.png", format="PNG", optimize=True)
 print("wrote entry.png", img.size)
