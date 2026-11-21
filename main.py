@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Entry program for the-catalogue-photo-of-an-2-20261121-0341: copy the
-catalogue photograph to the output dir.
+"""Entry program for the-catalogue-photo-of-an-2-20261121-0341: copy the entry
+image to the output dir.
 
-The image is drawn by draw_image.py (run at build time); this program just
+The image is pre-drawn by draw_image.py (run at build time); this program just
 places it at $MAKEFUN_OUTPUT_DIR/entry.png (or /output/entry.png), so both
 runs write identical bytes.
 """
